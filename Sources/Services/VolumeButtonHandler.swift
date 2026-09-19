@@ -8,9 +8,15 @@ import UIKit
 /// The technique: activate an ambient `AVAudioSession`, park an invisible `MPVolumeView`
 /// in the key window (its presence is what silences the system volume HUD), and observe
 /// `outputVolume` via KVO. Every physical button press changes `outputVolume` by one
-/// step, which fires the KVO callback; we then immediately snap the slider back to the
-/// middle so the next press — in either direction — produces a fresh, detectable change
-/// instead of clamping at 0.0 or 1.0.
+/// step, which fires the KVO callback.
+///
+/// We deliberately do *not* recenter the volume after every single press. Snapping the
+/// slider back to 0.5 forces an extra programmatic volume change that itself takes a
+/// beat to land, and a hardware press that arrives before it lands can get swallowed —
+/// which is what "have to wait before it registers again" looks like. Instead we only
+/// recenter once the volume drifts near an edge (close to 0.0 or 1.0, where the next
+/// same-direction press would otherwise clamp and stop producing changes), so a burst of
+/// same-direction presses fires back-to-back off real hardware steps.
 ///
 /// This only works while the handler is `start()`-ed and the app is in the foreground.
 final class VolumeButtonHandler: NSObject {
@@ -24,7 +30,9 @@ final class VolumeButtonHandler: NSObject {
     private var lastTriggerDate = Date.distantPast
 
     private static let targetVolume: Float = 0.5
-    private static let debounceInterval: TimeInterval = 0.2
+    private static let lowEdge: Float = 0.15
+    private static let highEdge: Float = 0.85
+    private static let debounceInterval: TimeInterval = 0.05
 
     func start() {
         guard !isObserving else { return }
@@ -89,15 +97,18 @@ final class VolumeButtonHandler: NSObject {
         }
 
         let now = Date()
-        let shouldFire = now.timeIntervalSince(lastTriggerDate) > Self.debounceInterval
-        if shouldFire {
-            lastTriggerDate = now
-            let callback = onVolumeButtonPressed
-            DispatchQueue.main.async {
-                callback?()
-            }
+        guard now.timeIntervalSince(lastTriggerDate) > Self.debounceInterval else { return }
+        lastTriggerDate = now
+
+        let callback = onVolumeButtonPressed
+        DispatchQueue.main.async {
+            callback?()
         }
-        centerSystemVolume()
+
+        let currentVolume = audioSession.outputVolume
+        if currentVolume < Self.lowEdge || currentVolume > Self.highEdge {
+            centerSystemVolume()
+        }
     }
 
     private func centerSystemVolume() {
