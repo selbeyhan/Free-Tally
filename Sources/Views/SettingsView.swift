@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct SettingsView: View {
     @Environment(AppSettings.self) private var settings
@@ -17,14 +16,6 @@ struct SettingsView: View {
                     Toggle("Keep Screen Awake", isOn: $settings.keepScreenAwake)
                 } footer: {
                     Text("When enabled, pressing either volume button on a counter's screen adds to it instead of changing the volume. The volume level itself is never actually changed.")
-                }
-
-                Section {
-                    Button("Test Haptic Feedback") {
-                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                    }
-                } footer: {
-                    Text("This button has nothing to do with counters, volume buttons, or the audio session — it's a bare UIKit haptic call, for isolating whether haptics work on this device/build at all.")
                 }
 
                 Section {
