@@ -1,3 +1,4 @@
+import AudioToolbox
 import SwiftUI
 
 struct ContentView: View {
@@ -16,13 +17,25 @@ struct ContentView: View {
             }
             .navigationTitle("Tally")
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItemGroup(placement: .navigationBarLeading) {
                     Button {
                         showingSettings = true
                     } label: {
                         Image(systemName: "gearshape")
                     }
                     .accessibilityLabel("Settings")
+
+                    // Temporary debug aid: fires sound + vibration through the older
+                    // AudioServicesPlaySystemSound/kSystemSoundID_Vibrate path, which is
+                    // a completely different subsystem from UIImpactFeedbackGenerator /
+                    // Core Haptics. Remove once haptics are confirmed working normally.
+                    Button {
+                        AudioServicesPlaySystemSound(SystemSoundID(1104))
+                        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+                    } label: {
+                        Image(systemName: "ladybug")
+                    }
+                    .accessibilityLabel("Debug: Sound and Vibrate")
                 }
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     if !store.counters.isEmpty {
