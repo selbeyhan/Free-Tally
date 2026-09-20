@@ -77,14 +77,12 @@ struct CounterDetailView: View {
             HStack(spacing: 24) {
                 controlButton(systemImage: "arrow.uturn.backward") {
                     store.undo(id: counterID)
-                    HapticsManager.tap(enabled: settings.hapticsEnabled)
                 }
                 .disabled(!store.canUndo(for: counterID))
                 .opacity(store.canUndo(for: counterID) ? 1 : 0.35)
 
                 controlButton(systemImage: "minus") {
                     store.decrement(id: counterID)
-                    HapticsManager.tap(enabled: settings.hapticsEnabled)
                 }
             }
             .padding(.bottom, 16)
@@ -94,7 +92,9 @@ struct CounterDetailView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             store.increment(id: counterID)
-            HapticsManager.tap(enabled: settings.hapticsEnabled)
+        }
+        .sensoryFeedback(trigger: counter.count) { _, _ in
+            settings.hapticsEnabled ? .impact : nil
         }
     }
 
@@ -142,7 +142,6 @@ struct CounterDetailView: View {
         }
         volumeHandler.onVolumeButtonPressed = {
             store.increment(id: counterID)
-            HapticsManager.tap(enabled: settings.hapticsEnabled)
         }
         volumeHandler.start()
         syncIdleTimer()
