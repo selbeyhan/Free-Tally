@@ -12,6 +12,9 @@ struct CounterDetailView: View {
     @State private var showingEditSheet = false
     @State private var showingResetConfirmation = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingQuickEditAlert = false
+    @State private var quickEditText = ""
+    @GestureState private var isLongPressingCount = false
 
     private var counter: Counter? {
         store.counters.first { $0.id == counterID }
@@ -42,6 +45,22 @@ struct CounterDetailView: View {
                 dismiss()
             }
         }
+        .alert("Set Count", isPresented: $showingQuickEditAlert) {
+            TextField("Count", text: $quickEditText)
+                .keyboardType(.numbersAndPunctuation)
+            Button("Cancel", role: .cancel) {}
+            Button("Set") {
+                let trimmed = quickEditText.trimmingCharacters(in: .whitespaces)
+                if let value = Int(trimmed) {
+                    let clamped = min(max(value, Counter.countRange.lowerBound), Counter.countRange.upperBound)
+                    store.setCount(id: counterID, to: clamped)
+                    fireFeedback()
+                }
+            }
+            .disabled(Int(quickEditText.trimmingCharacters(in: .whitespaces)) == nil)
+        } message: {
+            Text("Enter a new value for this counter.")
+        }
         .onAppear { syncVolumeHandler() }
         .onDisappear {
             volumeHandler.stop()
@@ -67,6 +86,16 @@ struct CounterDetailView: View {
                 .animation(.snappy, value: counter.count)
                 .accessibilityLabel("Count")
                 .accessibilityValue("\(counter.count)")
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .updating($isLongPressingCount) { value, state, _ in
+                            state = value
+                        }
+                        .onEnded { _ in
+                            quickEditText = "\(counter.count)"
+                            showingQuickEditAlert = true
+                        }
+                )
 
             Text(settings.useVolumeButtons ? "Tap anywhere, or press a volume button" : "Tap anywhere to count")
                 .font(.footnote)
@@ -77,14 +106,14 @@ struct CounterDetailView: View {
             HStack(spacing: 24) {
                 controlButton(systemImage: "arrow.uturn.backward") {
                     store.undo(id: counterID)
-                    HapticsManager.tap(enabled: settings.hapticsEnabled)
+                    fireFeedback()
                 }
                 .disabled(!store.canUndo(for: counterID))
                 .opacity(store.canUndo(for: counterID) ? 1 : 0.35)
 
                 controlButton(systemImage: "minus") {
                     store.decrement(id: counterID)
-                    HapticsManager.tap(enabled: settings.hapticsEnabled)
+                    fireFeedback()
                 }
             }
             .padding(.bottom, 16)
@@ -93,8 +122,9 @@ struct CounterDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .onTapGesture {
+            guard !isLongPressingCount else { return }
             store.increment(id: counterID)
-            HapticsManager.tap(enabled: settings.hapticsEnabled)
+            fireFeedback()
         }
     }
 
@@ -142,7 +172,7 @@ struct CounterDetailView: View {
         }
         volumeHandler.onVolumeButtonPressed = {
             store.increment(id: counterID)
-            HapticsManager.tap(enabled: settings.hapticsEnabled)
+            fireFeedback()
         }
         volumeHandler.start()
         syncIdleTimer()
@@ -150,6 +180,11 @@ struct CounterDetailView: View {
 
     private func syncIdleTimer() {
         UIApplication.shared.isIdleTimerDisabled = settings.keepScreenAwake && scenePhase == .active
+    }
+
+    private func fireFeedback() {
+        FeedbackManager.vibrate(enabled: settings.hapticsEnabled, length: settings.hapticLength)
+        FeedbackManager.playSound(enabled: settings.soundEnabled, length: settings.soundLength)
     }
 }
 

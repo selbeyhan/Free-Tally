@@ -104,6 +104,11 @@ final class CounterStore {
     }
 
     @discardableResult
+    func setCount(id: UUID, to value: Int) -> Int? {
+        adjust(id: id) { $0.count = value }
+    }
+
+    @discardableResult
     private func adjust(id: UUID, _ transform: (inout Counter) -> Void) -> Int? {
         guard let index = counters.firstIndex(where: { $0.id == id }) else { return nil }
         let previous = counters[index].count

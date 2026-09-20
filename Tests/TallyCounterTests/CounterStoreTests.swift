@@ -107,4 +107,83 @@ final class CounterStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.counters.first?.name, "Reps")
         XCTAssertEqual(reloaded.counters.first?.count, 3)
     }
+
+    func testSetCountSetsExactValue() {
+        let counter = Counter(name: "Reps", count: 5)
+        store.addCounter(counter)
+
+        store.setCount(id: counter.id, to: 42)
+
+        XCTAssertEqual(store.counters.first?.count, 42)
+    }
+
+    func testSetCountAllowsNegativeValues() {
+        let counter = Counter(name: "Reps", count: 5)
+        store.addCounter(counter)
+
+        store.setCount(id: counter.id, to: -10)
+
+        XCTAssertEqual(store.counters.first?.count, -10)
+    }
+
+    func testSetCountIsUndoable() {
+        let counter = Counter(name: "Reps", count: 5)
+        store.addCounter(counter)
+
+        store.setCount(id: counter.id, to: 100)
+        XCTAssertTrue(store.canUndo(for: counter.id))
+
+        store.undo(id: counter.id)
+        XCTAssertEqual(store.counters.first?.count, 5)
+    }
+
+    func testSetCountReturnsNilForUnknownID() {
+        XCTAssertNil(store.setCount(id: UUID(), to: 10))
+    }
+
+    func testLoadingOldPersistedJSONWithoutIconKindDoesNotDropCounters() throws {
+        let oldShapeJSON = """
+        [{"id":"\(UUID().uuidString)","name":"Push-ups","count":7,"step":1,
+          "colorHex":"FF3B30","symbolName":"flame.fill",
+          "createdAt":"2024-01-01T00:00:00Z","updatedAt":"2024-01-01T00:00:00Z"}]
+        """.data(using: .utf8)!
+        try oldShapeJSON.write(to: tempURL)
+
+        let reloaded = CounterStore(fileURL: tempURL)
+
+        XCTAssertEqual(reloaded.counters.count, 1)
+        XCTAssertEqual(reloaded.counters.first?.symbolName, "flame.fill")
+        XCTAssertEqual(reloaded.counters.first?.iconKind, .symbol)
+    }
+}
+
+final class CounterCodableTests: XCTestCase {
+    func testDecodingOldJSONWithoutIconKindDefaultsToSymbol() throws {
+        let json = """
+        {"id":"\(UUID().uuidString)","name":"Push-ups","count":3,"step":1,
+         "colorHex":"FF3B30","symbolName":"flame.fill",
+         "createdAt":"2024-01-01T00:00:00Z","updatedAt":"2024-01-01T00:00:00Z"}
+        """.data(using: .utf8)!
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let counter = try decoder.decode(Counter.self, from: json)
+
+        XCTAssertEqual(counter.iconKind, .symbol)
+    }
+
+    func testDecodingNewJSONWithEmojiIconKind() throws {
+        let json = """
+        {"id":"\(UUID().uuidString)","name":"Coffee","count":0,"step":1,
+         "colorHex":"FF9500","symbolName":"☕️","iconKind":"emoji",
+         "createdAt":"2024-01-01T00:00:00Z","updatedAt":"2024-01-01T00:00:00Z"}
+        """.data(using: .utf8)!
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let counter = try decoder.decode(Counter.self, from: json)
+
+        XCTAssertEqual(counter.iconKind, .emoji)
+        XCTAssertEqual(counter.symbolName, "☕️")
+    }
 }

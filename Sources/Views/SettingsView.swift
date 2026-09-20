@@ -12,10 +12,38 @@ struct SettingsView: View {
             Form {
                 Section {
                     Toggle("Count with Volume Buttons", isOn: $settings.useVolumeButtons)
-                    Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
-                    Toggle("Keep Screen Awake", isOn: $settings.keepScreenAwake)
                 } footer: {
                     Text("When enabled, pressing either volume button on a counter's screen adds to it instead of changing the volume. The volume level itself is never actually changed.")
+                }
+
+                Section {
+                    Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
+                    if settings.hapticsEnabled {
+                        Picker("Vibration Length", selection: $settings.hapticLength) {
+                            ForEach(FeedbackLength.allCases) { length in
+                                Text(length.displayName).tag(length)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                }
+
+                Section {
+                    Toggle("Sound Feedback", isOn: $settings.soundEnabled)
+                    if settings.soundEnabled {
+                        Picker("Sound Length", selection: $settings.soundLength) {
+                            ForEach(FeedbackLength.allCases) { length in
+                                Text(length.displayName).tag(length)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                } footer: {
+                    Text("Sound feedback plays through the ringer volume and is silenced by the ring/silent switch, like other system sounds.")
+                }
+
+                Section {
+                    Toggle("Keep Screen Awake", isOn: $settings.keepScreenAwake)
                 }
 
                 Section {

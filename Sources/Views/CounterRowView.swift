@@ -8,9 +8,7 @@ struct CounterRowView: View {
             ZStack {
                 Circle()
                     .fill(counter.color.opacity(0.18))
-                Image(systemName: counter.symbolName)
-                    .foregroundStyle(counter.color)
-                    .font(.system(size: 18, weight: .semibold))
+                iconView
             }
             .frame(width: 40, height: 40)
 
@@ -30,6 +28,19 @@ struct CounterRowView: View {
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var iconView: some View {
+        switch counter.iconKind {
+        case .symbol:
+            Image(systemName: counter.symbolName)
+                .foregroundStyle(counter.color)
+                .font(.system(size: 18, weight: .semibold))
+        case .emoji:
+            Text(counter.symbolName)
+                .font(.system(size: 20))
+        }
     }
 }
 
