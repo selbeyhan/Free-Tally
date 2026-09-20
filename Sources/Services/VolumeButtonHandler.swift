@@ -37,18 +37,24 @@ final class VolumeButtonHandler: NSObject {
     func start() {
         guard !isObserving else { return }
 
-        do {
-            try audioSession.setCategory(.ambient, options: [.mixWithOthers])
-            try audioSession.setActive(true, options: [])
-        } catch {
-            #if DEBUG
-            print("VolumeButtonHandler: failed to activate audio session: \(error)")
-            #endif
-        }
-
         installHiddenVolumeViewIfNeeded()
         audioSession.addObserver(self, forKeyPath: "outputVolume", options: [.new], context: nil)
         isObserving = true
+
+        // AVAudioSession activation explicitly warns against being called synchronously
+        // on the main thread ("can lead to UI unresponsiveness"), so this runs on a
+        // background queue instead.
+        let session = audioSession
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try session.setCategory(.ambient, options: [.mixWithOthers])
+                try session.setActive(true, options: [])
+            } catch {
+                #if DEBUG
+                print("VolumeButtonHandler: failed to activate audio session: \(error)")
+                #endif
+            }
+        }
 
         // The MPVolumeView's internal slider isn't populated the instant the view is
         // added to the hierarchy, so give it a beat before centering the volume.
@@ -64,7 +70,11 @@ final class VolumeButtonHandler: NSObject {
         hiddenVolumeView?.removeFromSuperview()
         hiddenVolumeView = nil
         volumeSlider = nil
-        try? audioSession.setActive(false, options: [.notifyOthersOnDeactivation])
+
+        let session = audioSession
+        DispatchQueue.global(qos: .userInitiated).async {
+            try? session.setActive(false, options: [.notifyOthersOnDeactivation])
+        }
     }
 
     private func installHiddenVolumeViewIfNeeded() {
