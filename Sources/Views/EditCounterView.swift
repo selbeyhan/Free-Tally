@@ -164,21 +164,17 @@ struct EditCounterView: View {
                     Text("Custom")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    TextField("🔥", text: $customEmojiText)
-                        .multilineTextAlignment(.trailing)
-                        .font(.title3)
+                    EmojiTextField(text: $customEmojiText, placeholder: "🔥")
                         .frame(width: 50)
-                        .autocorrectionDisabled()
                         .onChange(of: customEmojiText) { _, newValue in
-                            // Keep just the most-recently-typed grapheme cluster.
-                            // `Character` is grapheme-cluster-based, so this handles
-                            // multi-scalar emoji (flags, ZWJ family sequences,
-                            // skin-tone modifiers) as one unit. Still needed here since
-                            // there's no public API to force a TextField to open
-                            // directly to the emoji keyboard.
-                            let clamped = newValue.last.map(String.init) ?? ""
-                            if clamped != newValue { customEmojiText = clamped }
-                            if !clamped.isEmpty { symbolName = clamped }
+                            // EmojiTextField already guarantees this is always either
+                            // empty or exactly one valid emoji, so no clamping needed
+                            // here. Don't clear symbolName when the field is emptied
+                            // mid-retype — the prior selection (grid tap or earlier
+                            // custom entry) should stay in effect until a new emoji
+                            // actually lands.
+                            guard !newValue.isEmpty else { return }
+                            symbolName = newValue
                         }
                 }
                 .padding(.vertical, 2)
