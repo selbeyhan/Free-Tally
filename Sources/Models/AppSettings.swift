@@ -38,7 +38,7 @@ final class AppSettings {
     }
 
     init(defaults: UserDefaults = .standard) {
-        useVolumeButtons = defaults.object(forKey: Keys.useVolumeButtons) as? Bool ?? true
+        useVolumeButtons = defaults.object(forKey: Keys.useVolumeButtons) as? Bool ?? false
         hapticsEnabled = defaults.object(forKey: Keys.hapticsEnabled) as? Bool ?? true
         hapticLength = defaults.string(forKey: Keys.hapticLength)
             .flatMap(FeedbackLength.init(rawValue:)) ?? .short
