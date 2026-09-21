@@ -89,7 +89,7 @@ struct EmojiTextField: UIViewRepresentable {
 
 /// `UITextField` subclass that forces the emoji keyboard open immediately, without
 /// requiring a manual tap of the globe key.
-private final class EmojiKeyboardTextField: UITextField {
+final class EmojiKeyboardTextField: UITextField {
     /// Search the currently active input modes for the emoji keyboard and force it as
     /// this field's preferred input mode. Without this override, the field opens to
     /// whichever keyboard was last active.
