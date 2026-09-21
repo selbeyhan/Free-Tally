@@ -13,7 +13,6 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: Sources
-    resources:
       - path: Resources/Assets.xcassets
     info:
       path: Resources/Info.plist
