@@ -51,7 +51,7 @@ struct SettingsView: View {
                         showingResetConfirmation = true
                     }
                 } footer: {
-                    Text("Tally keeps everything only on this device. There's no account, no cloud sync, no analytics, and no data ever leaves your phone.")
+                    Text("Free Tally keeps everything only on this device. There's no account, no cloud sync, no analytics, and no data ever leaves your phone.")
                 }
             }
             .navigationTitle("Settings")

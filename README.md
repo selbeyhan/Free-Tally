@@ -1,4 +1,4 @@
-# Tally
+# Free Tally
 
 A simple, fast, fully local tally counter app for iOS. Create as many counters as you
 want, tap the screen to count up, and — the main trick — count using your **volume

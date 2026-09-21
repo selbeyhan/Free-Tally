@@ -14,7 +14,7 @@ struct ContentView: View {
                     list
                 }
             }
-            .navigationTitle("Tally")
+            .navigationTitle("Free Tally")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
