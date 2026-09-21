@@ -51,6 +51,12 @@ struct Counter: Identifiable, Codable, Equatable {
         "cart.fill", "bell.fill", "pencil", "checkmark.circle.fill"
     ]
 
+    static let emojiChoices: [String] = [
+        "🔢", "🔥", "💧", "☕", "🏃", "📚", "🐾", "🌿",
+        "💪", "⚡", "⭐", "❤️", "🎮", "🍽️", "🌙", "☀️",
+        "🛒", "🔔", "✏️", "✅"
+    ]
+
     static let countRange: ClosedRange<Int> = -1_000_000...1_000_000
     static let stepRange: ClosedRange<Int> = 1...1000
 

@@ -39,28 +39,51 @@ enum FeedbackManager {
     private static let vibrateRepeatDelay: TimeInterval = 0.18
     private static let vibrateRepeats: [FeedbackLength: Int] = [.short: 1, .long: 3]
 
-    /// Guards against overlapping repeat sequences when tapping rapidly with "Long"
-    /// selected. Only ever read/written from the main thread (all call sites are
-    /// main-thread UI actions), including the reset at the end of the background
-    /// repeat sequence, so there's no cross-thread race on this flag.
+    /// How long `kSystemSoundID_Vibrate` stays "busy" after firing, silently ignoring
+    /// further calls (Apple's own docs: it "returns immediately and ignores other
+    /// calls while playing"). This is a real OS-level limit, not something tunable via
+    /// the call itself — this value is our own estimate of when it clears, genuinely
+    /// unverified without on-device testing. First thing to tune: raise it if Short
+    /// still drops occasionally, lower it if repeat taps start to feel delayed.
+    private static let vibrateBusyWindow: TimeInterval = 0.15
+
+    /// Only ever read/written from the main thread — the guard check happens from
+    /// main-thread UI call sites, and the reset + retry happens inside a
+    /// `DispatchQueue.main.asyncAfter` callback — so there's no cross-thread race on
+    /// either flag below.
     private static var isVibrating = false
+
+    /// Set when a vibration request arrives while one is already in flight. Coalesces
+    /// any number of requests that pile up during the busy window into exactly one
+    /// catch-up buzz once it clears, rather than dropping them (the previous behavior,
+    /// and the whole reason "Short" felt like it skipped taps) or queuing each one
+    /// individually (which would turn a fast burst into a trailing queue of buzzes
+    /// playing out after the user has already stopped tapping).
+    private static var hasPendingRetry = false
 
     static func vibrate(enabled: Bool, length: FeedbackLength) {
         guard enabled else { return }
-        let repeats = vibrateRepeats[length] ?? 1
-        guard repeats > 1 else {
-            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+        guard !isVibrating else {
+            hasPendingRetry = true
             return
         }
-        guard !isVibrating else { return }
+        performVibration(length: length)
+    }
+
+    private static func performVibration(length: FeedbackLength) {
         isVibrating = true
+        let repeats = vibrateRepeats[length] ?? 1
         DispatchQueue.global(qos: .userInitiated).async {
             for i in 0..<repeats {
                 if i > 0 { Thread.sleep(forTimeInterval: vibrateRepeatDelay) }
                 AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
             }
-            DispatchQueue.main.async {
+            DispatchQueue.main.asyncAfter(deadline: .now() + vibrateBusyWindow) {
                 isVibrating = false
+                if hasPendingRetry {
+                    hasPendingRetry = false
+                    performVibration(length: length)
+                }
             }
         }
     }

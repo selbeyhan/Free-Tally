@@ -14,7 +14,6 @@ struct CounterDetailView: View {
     @State private var showingDeleteConfirmation = false
     @State private var showingQuickEditAlert = false
     @State private var quickEditText = ""
-    @GestureState private var isLongPressingCount = false
 
     private var counter: Counter? {
         store.counters.first { $0.id == counterID }
@@ -86,15 +85,19 @@ struct CounterDetailView: View {
                 .animation(.snappy, value: counter.count)
                 .accessibilityLabel("Count")
                 .accessibilityValue("\(counter.count)")
-                .simultaneousGesture(
+                .gesture(
                     LongPressGesture(minimumDuration: 0.5)
-                        .updating($isLongPressingCount) { value, state, _ in
-                            state = value
-                        }
                         .onEnded { _ in
                             quickEditText = "\(counter.count)"
                             showingQuickEditAlert = true
                         }
+                        .exclusively(before:
+                            TapGesture()
+                                .onEnded {
+                                    store.increment(id: counterID)
+                                    fireFeedback()
+                                }
+                        )
                 )
 
             Text(settings.useVolumeButtons ? "Tap anywhere, or press a volume button" : "Tap anywhere to count")
@@ -122,7 +125,6 @@ struct CounterDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .onTapGesture {
-            guard !isLongPressingCount else { return }
             store.increment(id: counterID)
             fireFeedback()
         }

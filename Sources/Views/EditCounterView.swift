@@ -13,6 +13,8 @@ struct EditCounterView: View {
     @State private var colorHex: String
     @State private var symbolName: String
     @State private var iconKind: IconKind
+    @State private var isCustomEmojiExpanded = false
+    @State private var customEmojiText = ""
     @State private var showingDeleteConfirmation = false
 
     init(counter: Counter?) {
@@ -23,6 +25,14 @@ struct EditCounterView: View {
         _colorHex = State(initialValue: counter?.colorHex ?? Counter.palette[0])
         _symbolName = State(initialValue: counter?.symbolName ?? Counter.symbolChoices[0])
         _iconKind = State(initialValue: counter?.iconKind ?? .symbol)
+
+        // If editing a counter whose emoji predates the curated grid (a free-typed
+        // emoji not in Counter.emojiChoices), open with "Other…" already expanded and
+        // pre-filled, rather than looking like nothing is selected.
+        let existingEmoji = (counter?.iconKind == .emoji) ? counter?.symbolName : nil
+        let isCustomEmoji = existingEmoji.map { !Counter.emojiChoices.contains($0) } ?? false
+        _customEmojiText = State(initialValue: isCustomEmoji ? (existingEmoji ?? "") : "")
+        _isCustomEmojiExpanded = State(initialValue: isCustomEmoji)
     }
 
     private var isEditing: Bool { counter != nil }
@@ -59,13 +69,13 @@ struct EditCounterView: View {
                     case .symbol:
                         symbolGrid
                     case .emoji:
-                        emojiField
+                        emojiPicker
                     }
                 } header: {
                     Text("Icon")
                 } footer: {
                     if iconKind == .emoji {
-                        Text("Tap the globe (🌐) key to switch to the emoji keyboard.")
+                        Text("Choose an emoji above, or tap “Other…” to type your own.")
                     }
                 }
 
@@ -91,6 +101,11 @@ struct EditCounterView: View {
                     Button(isEditing ? "Save" : "Add") { save() }
                         .disabled(!canSave)
                 }
+            }
+            .onChange(of: iconKind) { _, newValue in
+                guard newValue == .emoji else { return }
+                guard !Counter.emojiChoices.contains(symbolName), customEmojiText.isEmpty else { return }
+                symbolName = Counter.emojiChoices[0]
             }
             .confirmationDialog("Delete this counter? This can't be undone.", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
@@ -140,22 +155,57 @@ struct EditCounterView: View {
         .padding(.vertical, 4)
     }
 
-    private var emojiField: some View {
-        HStack {
-            Text("Emoji")
-            Spacer()
-            TextField("🔥", text: $symbolName)
-                .multilineTextAlignment(.trailing)
-                .font(.title2)
-                .frame(width: 60)
-                .autocorrectionDisabled()
-                .onChange(of: symbolName) { _, newValue in
-                    // Keep just the most-recently-typed grapheme cluster. `Character`
-                    // is grapheme-cluster-based, so this handles multi-scalar emoji
-                    // (flags, ZWJ family sequences, skin-tone modifiers) as one unit.
-                    symbolName = newValue.last.map(String.init) ?? ""
+    private var emojiPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            emojiGrid
+
+            DisclosureGroup(isExpanded: $isCustomEmojiExpanded) {
+                HStack {
+                    Text("Custom")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    TextField("🔥", text: $customEmojiText)
+                        .multilineTextAlignment(.trailing)
+                        .font(.title3)
+                        .frame(width: 50)
+                        .autocorrectionDisabled()
+                        .onChange(of: customEmojiText) { _, newValue in
+                            // Keep just the most-recently-typed grapheme cluster.
+                            // `Character` is grapheme-cluster-based, so this handles
+                            // multi-scalar emoji (flags, ZWJ family sequences,
+                            // skin-tone modifiers) as one unit. Still needed here since
+                            // there's no public API to force a TextField to open
+                            // directly to the emoji keyboard.
+                            let clamped = newValue.last.map(String.init) ?? ""
+                            if clamped != newValue { customEmojiText = clamped }
+                            if !clamped.isEmpty { symbolName = clamped }
+                        }
                 }
+                .padding(.vertical, 2)
+            } label: {
+                Text("Other…")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
+    }
+
+    private var emojiGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 14) {
+            ForEach(Counter.emojiChoices, id: \.self) { emoji in
+                Text(emoji)
+                    .font(.title3)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        emoji == symbolName ? Color(hex: colorHex).opacity(0.25) : Color.clear,
+                        in: Circle()
+                    )
+                    .onTapGesture { symbolName = emoji }
+                    .accessibilityLabel("Icon")
+                    .accessibilityAddTraits(emoji == symbolName ? .isSelected : [])
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     private func save() {
